@@ -1855,11 +1855,12 @@ async function initRegPage() {
   DB.years.forEach(y => sel.innerHTML += `<option value="${y.id}">${y.label}</option>`);
   if (!DB.years.length) return;
 
-  // เลือกปีที่มี course เปิดรับสมัครก่อน ถ้าไม่มีค่อยใช้ปีแรกสุด
-  const yearWithOpenCourse = DB.years.find(y =>
-    DB.courses.some(c => c.yearId === y.id && c.status === 'open')
-  );
-  sel.value = (yearWithOpenCourse || DB.years[0]).id;
+  // หาปีที่มี course เปิดอยู่จาก DB.courses ที่ fetch มาแล้ว
+  // เรียงจากน้อยไปมาก (2568 ก่อน) แล้วหาปีแรกที่มี open course
+  const sortedYears = [...DB.years].sort((a,b) => a.year < b.year ? -1 : 1);
+  const best = sortedYears.find(y => DB.courses.some(c => c.yearId === y.id && c.status === 'open'))
+            || sortedYears[0];
+  sel.value = best.id;
   await renderCoursesPanel();
 }
 
@@ -1870,12 +1871,12 @@ async function renderCoursesPanel() {
     panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📖</div><div class="empty-state-text">เลือกปีการศึกษาเพื่อดูหลักสูตร</div></div>`;
     return;
   }
-  // fetch courses สดจาก API ทุกครั้งที่เลือกปี
-  if (API_URL) {
+  // fetch เฉพาะเมื่อยังไม่มีข้อมูลปีนี้ใน DB
+  const hasCached = DB.courses.some(c => c.yearId === yearId);
+  if (API_URL && !hasCached) {
     panel.innerHTML = `<div class="empty-state"><div class="empty-state-text" style="color:var(--accent)">⏳ กำลังโหลดหลักสูตร...</div></div>`;
     const res = await apiGet({action:'getCourses', yearId});
     if (res?.data) {
-      // อัปเดต DB.courses เฉพาะปีนี้
       DB.courses = DB.courses.filter(c => c.yearId !== yearId).concat(res.data);
     }
   }
@@ -2582,17 +2583,19 @@ function exportExcel(){
 // ══════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   if (API_URL) {
+    // fetch years และ courses ทั้งหมด (ไม่กรองปี) มาก่อนเลย
     const [yearsRes, coursesRes] = await Promise.all([
       apiGet({action:'getYears'}),
-      apiGet({action:'getCourses'})
+      apiGet({action:'getCourses'})  // ไม่ส่ง yearId = ดึงทุกปี
     ]);
-    if (yearsRes?.data) DB.years = yearsRes.data;
+    if (yearsRes?.data && yearsRes.data.length) DB.years = yearsRes.data;
     if (coursesRes?.data) DB.courses = coursesRes.data;
   }
   syncRegisteredCounts();
   await initRegPage();
   if (API_URL) {
-    document.getElementById('settings-api-url').value = API_URL;
+    const el = document.getElementById('settings-api-url');
+    if (el) el.value = API_URL;
   }
 });
 </script>
