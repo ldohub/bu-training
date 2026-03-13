@@ -2043,16 +2043,33 @@ function doRegister() {
   };
   DB.registrations.push(newReg);
   course.registered++;
-  apiPost('addRegistration', newReg);
 
+  // แสดง loading ก่อน
+  const successModal = document.getElementById('success-modal');
   document.getElementById('success-body').innerHTML = `
     <strong>${newReg.teacherName}</strong><br>
     ${newReg.faculty}
     <div class="modal-divider"></div>
     หลักสูตร: <strong>${course.name}</strong><br>
-    วันที่ลงทะเบียน: ${thDate}
+    วันที่ลงทะเบียน: ${thDate}<br>
+    <span style="color:var(--text-secondary);font-size:13px;">⏳ กำลังบันทึก...</span>
   `;
-  document.getElementById('success-modal').style.display = 'flex';
+  successModal.style.display = 'flex';
+
+  // ส่งข้อมูลไป Google Sheets
+  apiPost('addRegistration', newReg).then(res => {
+    const statusEl = successModal.querySelector('span');
+    if (res?.status === 'ok') {
+      if (statusEl) statusEl.innerHTML = '✅ บันทึกลง Google Sheets เรียบร้อย';
+    } else if (res?.status === 'error' && res?.message === 'Already registered') {
+      if (statusEl) statusEl.innerHTML = '⚠️ มีข้อมูลการลงทะเบียนนี้อยู่แล้ว';
+    } else {
+      if (statusEl) statusEl.innerHTML = '⚠️ ไม่สามารถบันทึกลง Sheets ได้ กรุณาแจ้งเจ้าหน้าที่';
+    }
+  }).catch(() => {
+    const statusEl = successModal.querySelector('span');
+    if (statusEl) statusEl.innerHTML = '⚠️ เกิดข้อผิดพลาด กรุณาแจ้งเจ้าหน้าที่';
+  });
 
   // Reset form
   selectedCourseId = null;
