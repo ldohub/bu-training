@@ -1853,11 +1853,14 @@ async function initRegPage() {
   const sel = document.getElementById('reg-year');
   sel.innerHTML = '<option value="">— เลือกปีการศึกษา —</option>';
   DB.years.forEach(y => sel.innerHTML += `<option value="${y.id}">${y.label}</option>`);
-  // Auto-select latest year and load courses
-  if (DB.years.length) {
-    sel.value = DB.years[DB.years.length - 1].id;
-    await renderCoursesPanel();
-  }
+  if (!DB.years.length) return;
+
+  // เลือกปีที่มี course เปิดรับสมัครก่อน ถ้าไม่มีค่อยใช้ปีแรกสุด
+  const yearWithOpenCourse = DB.years.find(y =>
+    DB.courses.some(c => c.yearId === y.id && c.status === 'open')
+  );
+  sel.value = (yearWithOpenCourse || DB.years[0]).id;
+  await renderCoursesPanel();
 }
 
 async function renderCoursesPanel() {
@@ -2579,7 +2582,6 @@ function exportExcel(){
 // ══════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   if (API_URL) {
-    // fetch years + courses จาก Google Sheets ก่อนแสดงหน้า frontend
     const [yearsRes, coursesRes] = await Promise.all([
       apiGet({action:'getYears'}),
       apiGet({action:'getCourses'})
@@ -2588,7 +2590,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (coursesRes?.data) DB.courses = coursesRes.data;
   }
   syncRegisteredCounts();
-  initRegPage();
+  await initRegPage();
   if (API_URL) {
     document.getElementById('settings-api-url').value = API_URL;
   }
