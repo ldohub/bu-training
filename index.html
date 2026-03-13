@@ -1860,13 +1860,23 @@ function initRegPage() {
   }
 }
 
-function renderCoursesPanel() {
+async function renderCoursesPanel() {
   const yearId = document.getElementById('reg-year').value;
   const panel = document.getElementById('courses-panel');
   if (!yearId) {
     panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📖</div><div class="empty-state-text">เลือกปีการศึกษาเพื่อดูหลักสูตร</div></div>`;
     return;
   }
+  // fetch courses สดจาก API ทุกครั้งที่เลือกปี
+  if (API_URL) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-state-text" style="color:var(--accent)">⏳ กำลังโหลดหลักสูตร...</div></div>`;
+    const res = await apiGet({action:'getCourses', yearId});
+    if (res?.data) {
+      // อัปเดต DB.courses เฉพาะปีนี้
+      DB.courses = DB.courses.filter(c => c.yearId !== yearId).concat(res.data);
+    }
+  }
+  syncRegisteredCounts();
   const courses = DB.courses.filter(c => c.yearId === yearId);
   if (!courses.length) {
     panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">ยังไม่มีหลักสูตรในปีการศึกษานี้</div></div>`;
@@ -2567,10 +2577,19 @@ function exportExcel(){
 // ══════════════════════════════════
 // INIT
 // ══════════════════════════════════
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', async () => {
+  if (API_URL) {
+    // fetch years + courses จาก Google Sheets ก่อนแสดงหน้า frontend
+    const [yearsRes, coursesRes] = await Promise.all([
+      apiGet({action:'getYears'}),
+      apiGet({action:'getCourses'})
+    ]);
+    if (yearsRes?.data) DB.years = yearsRes.data;
+    if (coursesRes?.data) DB.courses = coursesRes.data;
+  }
   syncRegisteredCounts();
   initRegPage();
-  if(API_URL){
+  if (API_URL) {
     document.getElementById('settings-api-url').value = API_URL;
   }
 });
