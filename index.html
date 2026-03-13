@@ -2470,6 +2470,9 @@ function showAddYearModal() { document.getElementById('modal-add-year').style.di
 function showAddCourseModal() {
   populateYearSelects();
   resetDatePicker();
+  // auto-select ปีแรกที่มีอยู่
+  const sel = document.getElementById('new-course-year');
+  if (sel && sel.options.length > 1) sel.selectedIndex = 1;
   document.getElementById('modal-add-course').style.display='flex';
 }
 function showAddTeacherModal() { document.getElementById('modal-add-teacher').style.display='flex'; }
@@ -2489,7 +2492,8 @@ function saveYear() {
 function saveCourse() {
   const name=document.getElementById('new-course-name').value.trim();
   const yearId=document.getElementById('new-course-year').value;
-  if(!name||!yearId){ alert('กรุณากรอกข้อมูลที่จำเป็น'); return; }
+  if(!name) { alert('กรุณากรอกชื่อหลักสูตร'); return; }
+  if(!yearId) { alert('กรุณาเลือกปีการศึกษา'); return; }
   const c={id:'C'+Date.now(), yearId, name, date:document.getElementById('new-course-date').value, location:document.getElementById('new-course-location').value, capacity:parseInt(document.getElementById('new-course-capacity').value)||0, status:document.getElementById('new-course-status').value, registered:0};
   DB.courses.push(c);
   apiPost('addCourse',c);
