@@ -1848,15 +1848,15 @@ function switchRegTab(tab) {
 // ══════════════════════════════════
 // COURSES PANEL (Right Column)
 // ══════════════════════════════════
-function initRegPage() {
+async function initRegPage() {
   syncRegisteredCounts();
   const sel = document.getElementById('reg-year');
   sel.innerHTML = '<option value="">— เลือกปีการศึกษา —</option>';
   DB.years.forEach(y => sel.innerHTML += `<option value="${y.id}">${y.label}</option>`);
-  // Default to latest year
+  // Auto-select latest year and load courses
   if (DB.years.length) {
     sel.value = DB.years[DB.years.length - 1].id;
-    renderCoursesPanel();
+    await renderCoursesPanel();
   }
 }
 
