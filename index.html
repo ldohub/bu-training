@@ -1795,26 +1795,45 @@ function showAlert(el, type, msg) {
 async function apiPost(action, data={}) {
   if (!API_URL) return null;
   try {
-    // Google Apps Script requires text/plain to avoid CORS preflight
     const r = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({action, ...data}),
       redirect: 'follow'
     });
     const text = await r.text();
     try { return JSON.parse(text); } catch { return null; }
-  } catch { return null; }
+  } catch(e) { console.error('apiPost error:', e); return null; }
 }
 
-async function apiGet(params={}) {
-  if (!API_URL) return null;
-  try {
-    const qs = Object.entries(params).map(([k,v]) => k+'='+encodeURIComponent(v)).join('&');
-    const r = await fetch(API_URL + (qs ? '?'+qs : ''), { method:'GET', redirect:'follow' });
-    const text = await r.text();
-    try { return JSON.parse(text); } catch { return null; }
-  } catch { return null; }
+// apiGet ใช้ JSONP เพื่อรองรับทุก browser รวมถึง Safari และ Chrome mobile
+function apiGet(params={}) {
+  return new Promise((resolve) => {
+    if (!API_URL) { resolve(null); return; }
+    const cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      console.warn('apiGet timeout:', params);
+      resolve(null);
+    }, 15000);
+    window[cbName] = (data) => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve(data);
+    };
+    const qs = Object.entries({...params, callback: cbName})
+      .map(([k,v]) => k+'='+encodeURIComponent(v)).join('&');
+    const script = document.createElement('script');
+    script.src = API_URL + '?' + qs;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      resolve(null);
+    };
+    document.head.appendChild(script);
+  });
 }
 function closeOverlay(id) { document.getElementById(id).style.display = 'none'; }
 
